@@ -29,7 +29,7 @@ This is a Next.js application that uses machine learning to generate a podcast f
 
    You can obtain these API keys from the following sources:
    - [FireCrawl API Key](https://www.firecrawl.dev/app/api-keys)
-   - [GROQ API Key](https://console.groq.com/keys)
+   - [Groq API Key](https://console.groq.com/keys)
    - [ElevenLabs API Key](https://try.elevenlabs.io/ghybe9fk5htz)
 
 4. **Start the development server:**
