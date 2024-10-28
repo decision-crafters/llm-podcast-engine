@@ -40,7 +40,7 @@ const createAudioFileFromText = async (text: string) => {
         const audio = await client.generate({
             voice: "Rachel",
             model_id: "eleven_turbo_v2",
-            text: text.substring(0, 10),
+            text: text,
         })
         console.log('Audio generated')
 
