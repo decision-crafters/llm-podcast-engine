@@ -325,11 +325,6 @@ export function LlmPodcastEngine() {
         </div>
       </main>
       {/* 20. Footer section */}
-      <footer className="bg-black shadow-sm h-12">
-        <div className="max-w-7xl mx-auto h-full flex items-center justify-center px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-sm text-white">Developers Digest</p>
-        </div>
-      </footer>
     </motion.div>
   )
 }
