@@ -39,19 +39,21 @@ const createAudioFileFromText = async (text: string) => {
         // Generate audio using ElevenLabs API
         console.log('Generating audio')
         const audio = await client.generate({
-            voice: "Rachel",
+            voice: process.env.ELEVENLABS_VOICE_ID || "Rachel",
             model_id: "eleven_turbo_v2",
             text: text,
         })
         console.log('Audio generated')
 
         // Create a unique filename and path for the audio file
-        const fileName = `${new Date().toISOString().replace(/[:.]/g, '-')}.mp3`
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+        const fileName = `podcast-${timestamp}.mp3`
         const publicDir = path.join(process.cwd(), 'public')
-        const filePath = path.join(publicDir, fileName)
+        const audioDir = path.join(publicDir, 'static', 'audio')
+        const filePath = path.join(audioDir, fileName)
 
-        // Ensure the public directory exists
-        await ensureDirectoryExists(publicDir)
+        // Ensure the audio directory exists
+        await ensureDirectoryExists(audioDir)
 
         // Convert the audio stream to a buffer
         const chunks: Buffer[] = []
@@ -63,7 +65,9 @@ const createAudioFileFromText = async (text: string) => {
         // Write the audio buffer to a file
         await writeFile(filePath, audioBuffer)
         console.log('Audio file saved:', filePath)
-        return fileName
+        
+        // Return the URL-friendly path
+        return `/static/audio/${fileName}`
     } catch (error) {
         console.error('Error in createAudioFileFromText:', error)
         throw error
@@ -73,7 +77,11 @@ const createAudioFileFromText = async (text: string) => {
 // 10. POST request handler for generating podcast
 export async function POST(req: NextRequest) {
     console.log('POST request received')
-    const { urls, provider: requestedProvider } = await req.json()
+    
+    // Reload environment variables for each request
+    dotenv.config({ override: true })
+    
+    const { urls, provider: requestedProvider, customConfig, systemPrompt: customSystemPrompt, userPrompt: customUserPrompt } = await req.json()
     console.log('URLs received:', urls)
 
     const encoder = new TextEncoder()
@@ -109,7 +117,7 @@ export async function POST(req: NextRequest) {
                     const result = scrapeResults[i]
                     if (result.success) {
                         console.log(`Adding content from ${urls[i]}`)
-                        combinedMarkdown += `\n\nFrom ${urls[i]}:\n${result.markdown}`
+                        combinedMarkdown += `\n\n### Content from ${urls[i]}\n${result.markdown}\n`
                     }
                 }
 
@@ -129,8 +137,43 @@ export async function POST(req: NextRequest) {
                 sendUpdate(`Compiling the most interesting stories using ${provider}...`)
                 console.log('Creating text generation stream')
 
-                const systemPrompt = "You are a witty tech news podcaster. Create a 5-minute script covering the top 5-10 most interesting tech stories. Summarize each story in 1-4 sentences, keeping the tone funny and entertaining. Aim for a mix of humor and information that will engage and amuse tech-savvy listeners. Focus solely on the content without any audio cues or formatting instructions. Return only the script that will be read by the text-to-speech system, without any additional instructions or metadata."
-                const userPrompt = `It's ${currentDate}. Create a hilarious and informative 5-minute podcast script covering the top 5-10 tech stories from the following content. Make it entertaining and engaging for our tech-loving audience. Return only the script to be read, without any formatting or instructions: ${combinedMarkdown}`
+                // Default prompts if no environment variables are set
+                const defaultSystemPrompt = "You are a witty tech news podcaster. Your task is to create an engaging 5-minute script that covers the top 5-10 most interesting tech stories from the provided content. For each story: 1) Start by mentioning the source URL, 2) Summarize the key points in 1-4 sentences, 3) Add your humorous take or interesting insight. Keep the tone entertaining and informative. Focus on delivering clear, engaging content without any audio cues or formatting instructions."
+
+                const defaultUserPrompt = `Welcome to your daily tech update for ${currentDate}! Below you'll find the latest tech news from various sources. Create an entertaining and informative podcast script that our tech-savvy audience will love. Remember to mention each story's source URL before discussing it.\n\nHere's today's content:\n${combinedMarkdown}`
+
+                // Use environment variables if set, otherwise use defaults
+                console.log('Checking environment variables...')
+                console.log('PODCAST_SYSTEM_PROMPT:', process.env.PODCAST_SYSTEM_PROMPT ? 'Found' : 'Not found')
+                console.log('PODCAST_USER_PROMPT:', process.env.PODCAST_USER_PROMPT ? 'Found' : 'Not found')
+
+                // Wait a moment to ensure environment variables are loaded
+                await new Promise(resolve => setTimeout(resolve, 100))
+
+                const systemPrompt = process.env.PODCAST_SYSTEM_PROMPT 
+                    ? process.env.PODCAST_SYSTEM_PROMPT.replace('{date}', currentDate).replace('{content}', combinedMarkdown)
+                    : defaultSystemPrompt
+
+                const userPrompt = process.env.PODCAST_USER_PROMPT
+                    ? process.env.PODCAST_USER_PROMPT.replace('{date}', currentDate).replace('{content}', combinedMarkdown)
+                    : defaultUserPrompt
+
+                console.log('Using prompts from:', process.env.PODCAST_SYSTEM_PROMPT ? '.env file' : 'default templates')
+                
+                // Log full prompts for debugging (without content)
+                console.log('Full system prompt:', process.env.PODCAST_SYSTEM_PROMPT || 'Using default')
+                console.log('Full user prompt:', process.env.PODCAST_USER_PROMPT || 'Using default')
+
+                // Create preview without content
+                const systemPromptPreview = process.env.PODCAST_SYSTEM_PROMPT || defaultSystemPrompt
+                const userPromptPreview = process.env.PODCAST_USER_PROMPT || defaultUserPrompt
+                
+                console.log('System prompt preview:', systemPromptPreview)
+                console.log('User prompt preview:', userPromptPreview)
+
+                // Double check the final prompts being sent to LLM
+                console.log('Final system prompt length:', systemPrompt.length)
+                console.log('Final user prompt length:', userPrompt.length)
 
                 // 18. Process the generated script
                 sendUpdate("Crafting witty commentary...")

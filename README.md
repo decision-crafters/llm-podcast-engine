@@ -118,6 +118,125 @@ You can customize the LLM configuration in two ways:
    - Specify custom model names per session
    - Changes don't persist between sessions (for security)
 
+### Prompting Guide
+
+The podcast engine uses a two-part prompting system: a system prompt and a user prompt. Understanding how to craft these prompts effectively will help you generate better podcasts.
+
+#### Prompt Structure
+
+1. **System Prompt** (`PODCAST_SYSTEM_PROMPT`)
+   - Defines the AI's role and personality
+   - Sets the tone and style of the podcast
+   - Establishes content guidelines and format
+   
+2. **User Prompt** (`PODCAST_USER_PROMPT`)
+   - Provides specific instructions for content processing
+   - Uses variables: `{date}` and `{content}`
+   - Guides the structure of the final output
+
+#### Best Practices
+
+1. **Role Definition**
+   ```env
+   # Good Example
+   PODCAST_SYSTEM_PROMPT="You are a tech industry veteran with 20 years of experience. Create engaging 5-minute scripts that blend technical insight with practical implications. Focus on how each story impacts developers and tech professionals."
+
+   # Bad Example
+   PODCAST_SYSTEM_PROMPT="Create a podcast about tech news" # Too vague, no personality
+   ```
+
+2. **Content Guidelines**
+   ```env
+   # Good Example
+   PODCAST_SYSTEM_PROMPT="...Summarize each story in 2-3 sentences. Start with the impact, then provide context. Avoid technical jargon unless essential. End each story with a key takeaway..."
+
+   # Bad Example
+   PODCAST_SYSTEM_PROMPT="...Tell me about the news..." # No structure or guidelines
+   ```
+
+3. **Tone Setting**
+   ```env
+   # Professional Tone
+   PODCAST_SYSTEM_PROMPT="...Maintain a professional, analytical tone. Present facts clearly and provide balanced perspectives..."
+
+   # Casual Tone
+   PODCAST_SYSTEM_PROMPT="...Keep it conversational and fun. Use analogies and real-world examples to explain complex topics..."
+   ```
+
+4. **Variable Usage**
+   ```env
+   # Good Example
+   PODCAST_USER_PROMPT="On {date}, we're exploring the latest tech developments. Let's break down these stories from {content} into clear, actionable insights..."
+
+   # Bad Example
+   PODCAST_USER_PROMPT="Here's the news" # No context or variables
+   ```
+
+#### Prompt Templates
+
+1. **Educational Focus**
+   ```env
+   PODCAST_SYSTEM_PROMPT="You are a tech educator who excels at breaking down complex topics. Create 5-minute scripts that focus on the educational aspects of tech news. For each story, provide: 1) Basic explanation, 2) Real-world impact, 3) Learning opportunities. Use analogies to explain technical concepts."
+   PODCAST_USER_PROMPT="Welcome to today's tech learning session on {date}. We'll explore and break down the most educational aspects of these developments: {content}"
+   ```
+
+2. **Industry Analysis**
+   ```env
+   PODCAST_SYSTEM_PROMPT="You are a strategic tech analyst. Create 5-minute scripts that focus on industry implications. For each story, analyze: 1) Market impact, 2) Industry trends, 3) Future predictions. Prioritize stories that signal significant industry shifts."
+   PODCAST_USER_PROMPT="In today's industry analysis for {date}, we'll examine the strategic implications of these developments: {content}"
+   ```
+
+3. **Developer Focus**
+   ```env
+   PODCAST_SYSTEM_PROMPT="You are a senior developer and tech lead. Create 5-minute scripts that emphasize practical implications for developers. For each story, cover: 1) Technical impact, 2) Implementation considerations, 3) Best practices. Include relevant code concepts when applicable."
+   PODCAST_USER_PROMPT="In this developer update for {date}, we'll analyze the technical significance of: {content}"
+   ```
+
+#### Tips for Customization
+
+1. **Length Control**
+   - Specify the desired length in the system prompt
+   - Use sentence count guidelines for each story
+   - Example: "Create a 5-minute script with 3-4 sentences per story"
+
+2. **Story Selection**
+   - Guide priority in the system prompt
+   - Specify selection criteria
+   - Example: "Prioritize stories about: AI advancements, open-source developments, security updates"
+
+3. **Structure Format**
+   - Define clear section requirements
+   - Specify transition styles
+   - Example: "Start with a hook, then cover 3-5 stories, end with key takeaways"
+
+4. **Voice Matching**
+   When using custom prompts, consider matching the tone to your selected ElevenLabs voice:
+   ```env
+   # For professional voices (Sam, Rachel)
+   PODCAST_SYSTEM_PROMPT="...maintain a professional, authoritative tone..."
+
+   # For casual voices (Josh, Antoni)
+   PODCAST_SYSTEM_PROMPT="...keep a conversational, friendly tone..."
+   ```
+
+#### Example Combinations
+
+1. **Professional Tech News**
+   ```env
+   ELEVENLABS_VOICE_ID=Sam
+   PODCAST_SYSTEM_PROMPT="You are a seasoned tech journalist. Create professional 5-minute scripts covering key tech developments. Maintain an authoritative tone while making complex topics accessible."
+   PODCAST_USER_PROMPT="Today, {date}, we're analyzing the most significant tech stories from: {content}"
+   ```
+
+2. **Casual Tech Chat**
+   ```env
+   ELEVENLABS_VOICE_ID=Josh
+   PODCAST_SYSTEM_PROMPT="You are a tech enthusiast who loves making tech fun and accessible. Create engaging 5-minute scripts that feel like a casual chat with a tech-savvy friend."
+   PODCAST_USER_PROMPT="Hey tech friends! It's {date}, and we've got some cool stuff to talk about from: {content}"
+   ```
+
+Remember to test different combinations of prompts and voices to find the style that best suits your needs.
+
 ### Other Features
 
 - Web scraping of news articles using FireCrawl
