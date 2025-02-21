@@ -13,6 +13,15 @@ import { existsSync } from 'fs'
 // 2. Load environment variables
 dotenv.config()
 
+// Define formatting guidelines
+const FORMATTING_GUIDELINES = `
+**Important Formatting and Content Guidelines:**
+
+* **Output Format:** **Only provide the text of your spoken opinion/review. Do NOT include any script-like elements.** This means no episode titles, no speaker names (like 'Oracle:'), no scene descriptions, no sound effect cues in parentheses, no podcast intro/outro text, no timestamps, no section headings, or any other formatting that is not part of the flowing spoken opinion itself. Just a continuous block of text designed to be read aloud.
+* **Start with Article Info:** Begin your opinion by clearly stating: 'Today I'm reviewing an article titled "[Article Title]", from [Source Name].' **You will find the [Article Title] and [Source Name] in the {content}.**
+* **Integrate Article Content:** Your opinion/review must directly engage with the content of the news article provided in the user prompt. **Summarize the main point of the article briefly, and then elaborate your cynical opinion in response to the article's ideas and claims.** Refer to specific aspects of the article in your review.
+* **Tone and Style:** Maintain a sarcastic and witty tone, using casual language and dry humor to debunk hype.`
+
 // 3. Initialize FirecrawlApp for web scraping
 console.log('Initializing FirecrawlApp')
 const app = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY })
@@ -150,9 +159,9 @@ export async function POST(req: NextRequest) {
                 // Wait a moment to ensure environment variables are loaded
                 await new Promise(resolve => setTimeout(resolve, 100))
 
-                const systemPrompt = process.env.PODCAST_SYSTEM_PROMPT 
-                    ? process.env.PODCAST_SYSTEM_PROMPT.replace('{date}', currentDate).replace('{content}', combinedMarkdown)
-                    : defaultSystemPrompt
+                // Append formatting guidelines to system prompt
+                const baseSystemPrompt = process.env.PODCAST_SYSTEM_PROMPT || defaultSystemPrompt
+                const systemPrompt = `${baseSystemPrompt}\n\n${FORMATTING_GUIDELINES}`.replace('{date}', currentDate).replace('{content}', combinedMarkdown)
 
                 const userPrompt = process.env.PODCAST_USER_PROMPT
                     ? process.env.PODCAST_USER_PROMPT.replace('{date}', currentDate).replace('{content}', combinedMarkdown)
@@ -161,11 +170,11 @@ export async function POST(req: NextRequest) {
                 console.log('Using prompts from:', process.env.PODCAST_SYSTEM_PROMPT ? '.env file' : 'default templates')
                 
                 // Log full prompts for debugging (without content)
-                console.log('Full system prompt:', process.env.PODCAST_SYSTEM_PROMPT || 'Using default')
+                console.log('Full system prompt:', baseSystemPrompt)
                 console.log('Full user prompt:', process.env.PODCAST_USER_PROMPT || 'Using default')
 
                 // Create preview without content
-                const systemPromptPreview = process.env.PODCAST_SYSTEM_PROMPT || defaultSystemPrompt
+                const systemPromptPreview = baseSystemPrompt
                 const userPromptPreview = process.env.PODCAST_USER_PROMPT || defaultUserPrompt
                 
                 console.log('System prompt preview:', systemPromptPreview)

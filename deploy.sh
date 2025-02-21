@@ -6,7 +6,13 @@ if [ ! -f .env ]; then
   echo "Error: .env file not found!"
   exit 1
 fi
-export $(grep -v '^#' .env | xargs)
+
+# Load environment variables
+while IFS= read -r line; do
+  if [[ ! "$line" =~ ^#.*$ ]] && [[ -n "$line" ]]; then
+    export "$line"
+  fi
+done < .env
 
 # Check for required API keys
 echo "Checking for required API keys..."
