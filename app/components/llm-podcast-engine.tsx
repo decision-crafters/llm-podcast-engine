@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Mic, Plus, X, Play, Pause, Flame, Loader, Download } from "lucide-react"
 import { LLMProvider } from '../lib/llm-providers'
+import AudioPlayer from 'react-h5-audio-player'
+import 'react-h5-audio-player/lib/styles.css'
+import { RHAP_UI } from 'react-h5-audio-player'
 
 interface CustomModelConfig {
   apiKey?: string
@@ -33,7 +36,7 @@ export function LlmPodcastEngine() {
   const [showCustomConfig, setShowCustomConfig] = useState(false)
 
   // 4. Create refs for audio and scroll area
-  const audioRef = useRef<HTMLAudioElement>(null)
+  const audioPlayerRef = useRef<AudioPlayer>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
 
   // 5. Function to validate URL
@@ -59,7 +62,26 @@ export function LlmPodcastEngine() {
     setUrls(urls.filter(url => url !== urlToRemove))
   }
 
-  // 8. Function to fetch news and generate podcast
+  // Function to handle audio download with error handling
+  const downloadAudio = async () => {
+    if (audioSrc) {
+      try {
+        // Create an anchor element
+        const link = document.createElement('a')
+        link.href = audioSrc
+        link.setAttribute('download', `podcast-${new Date().toISOString().slice(0, 10)}.mp3`)
+        link.setAttribute('type', 'audio/mpeg')
+        link.click()
+        
+        setCurrentStatus('Download started')
+      } catch (error) {
+        console.error('Download error:', error)
+        setCurrentStatus('Error downloading the audio file. Please try again.')
+      }
+    }
+  }
+
+  // Function to fetch news and generate podcast
   const fetchNews = async () => {
     setIsLoading(true)
     setIsExpanded(true)
@@ -67,6 +89,14 @@ export function LlmPodcastEngine() {
     setShowAudio(false)
     setCurrentStatus('')
     setAudioSrc('')
+
+    // Cleanup any existing audio player
+    if (audioPlayerRef.current?.audio?.current) {
+      const audio = audioPlayerRef.current.audio.current
+      audio.pause()
+      audio.src = ''
+      audio.load()
+    }
 
     try {
       const response = await fetch('/api/generate-podcast', {
@@ -81,13 +111,115 @@ export function LlmPodcastEngine() {
         }),
       })
 
-      // ... rest of the fetch function remains the same ...
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('Response body is not readable')
+      }
+
+      const decoder = new TextDecoder()
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\n\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = JSON.parse(line.slice(6))
+            switch (data.type) {
+              case 'update':
+                setCurrentStatus(data.message)
+                break
+              case 'content':
+                setNewsScript(prev => prev + data.content)
+                break
+              case 'complete':
+                const audioPath = data.audioFileName.startsWith('/') ? data.audioFileName : `/${data.audioFileName}`
+                setAudioSrc(audioPath)
+                setShowAudio(true)
+                setIsLoading(false)
+                setIsAudioLoading(true)
+                setCurrentStatus('Audio ready. Click play to listen.')
+                break
+              case 'error':
+                console.error("Error:", data.message)
+                setCurrentStatus(`Error: ${data.message}`)
+                setIsLoading(false)
+                break
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error('Fetch failed:', error)
       setCurrentStatus("Connection to server failed")
       setIsLoading(false)
     }
   }
+
+  // Effect to handle audio player events
+  useEffect(() => {
+    if (audioPlayerRef.current?.audio?.current) {
+      const audio = audioPlayerRef.current.audio.current
+
+      const handleLoadedData = () => {
+        setIsAudioLoading(false)
+        setCurrentStatus('Audio loaded successfully')
+      }
+
+      const handleEnded = () => {
+        setIsPlaying(false)
+        setCurrentStatus('Playback completed')
+      }
+
+      const handleError = (e: Event) => {
+        console.error('Audio error:', e)
+        setCurrentStatus('Error loading audio file. Please try again.')
+        setIsAudioLoading(false)
+        setShowAudio(false)
+        setAudioSrc('')
+      }
+
+      const handlePlay = () => {
+        setIsPlaying(true)
+        setCurrentStatus('Playing audio...')
+      }
+
+      const handlePause = () => {
+        setIsPlaying(false)
+        setCurrentStatus('Audio paused')
+      }
+
+      // Add event listeners
+      audio.addEventListener('loadeddata', handleLoadedData)
+      audio.addEventListener('ended', handleEnded)
+      audio.addEventListener('error', handleError)
+      audio.addEventListener('play', handlePlay)
+      audio.addEventListener('pause', handlePause)
+
+      // Cleanup function
+      return () => {
+        audio.removeEventListener('loadeddata', handleLoadedData)
+        audio.removeEventListener('ended', handleEnded)
+        audio.removeEventListener('error', handleError)
+        audio.removeEventListener('play', handlePlay)
+        audio.removeEventListener('pause', handlePause)
+        
+        // Cleanup any existing audio source
+        if (audio.src) {
+          audio.pause()
+          audio.src = ''
+          audio.load()
+        }
+      }
+    }
+  }, [audioPlayerRef.current])
 
   // Function to handle provider change
   const handleProviderChange = (provider: LLMProvider) => {
@@ -154,7 +286,10 @@ export function LlmPodcastEngine() {
                       Add URL
                     </Button>
                   </div>
-                  <div className="flex flex-col space-y-2">
+
+                  {/* Model Selection and Configuration */}
+                  <div className="flex flex-col space-y-2 p-4 bg-gray-800/50 rounded-lg border border-orange-500/30">
+                    <h3 className="text-lg font-semibold text-orange-400 mb-2">Model Settings</h3>
                     <select
                       value={selectedProvider}
                       onChange={(e) => handleProviderChange(e.target.value as LLMProvider)}
@@ -170,7 +305,7 @@ export function LlmPodcastEngine() {
                       onClick={() => setShowCustomConfig(!showCustomConfig)}
                       className="w-full bg-gray-800 hover:bg-gray-700 text-white"
                     >
-                      {showCustomConfig ? 'Hide Custom Config' : 'Show Custom Config'}
+                      {showCustomConfig ? 'Hide API Configuration' : 'Show API Configuration'}
                     </Button>
                     {showCustomConfig && (
                       <div className="space-y-2">
@@ -192,6 +327,7 @@ export function LlmPodcastEngine() {
                     )}
                   </div>
                 </div>
+
                 <ScrollArea className="flex-grow">
                   <div className="space-y-2">
                     {urls.map((url, index) => (
@@ -223,7 +359,56 @@ export function LlmPodcastEngine() {
                   )}
                 </Button>
               </motion.div>
-              {/* Rest of the component remains the same ... */}
+              {/* Audio player section */}
+              {showAudio && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="space-y-4"
+                >
+                  <div className="bg-gray-800 p-4 rounded-lg">
+                    <AudioPlayer
+                      ref={audioPlayerRef}
+                      src={audioSrc}
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                      onError={(e) => {
+                        console.error('Audio element error:', e)
+                        setCurrentStatus('Error with audio playback. Please try again.')
+                      }}
+                      className="bg-transparent"
+                      autoPlayAfterSrcChange={false}
+                      showJumpControls={false}
+                      customControlsSection={[
+                        RHAP_UI.MAIN_CONTROLS,
+                        RHAP_UI.VOLUME_CONTROLS,
+                        <div key="download" className="flex items-center ml-4">
+                          <Button
+                            onClick={downloadAudio}
+                            className="bg-orange-500 hover:bg-orange-600 text-black h-8"
+                            disabled={isAudioLoading}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ]}
+                      customProgressBarSection={[
+                        RHAP_UI.PROGRESS_BAR,
+                        RHAP_UI.CURRENT_TIME,
+                        RHAP_UI.DURATION,
+                        <div key="status" className="ml-4 text-sm text-gray-400">
+                          {currentStatus}
+                        </div>
+                      ]}
+                      style={{
+                        background: 'transparent',
+                        boxShadow: 'none',
+                      }}
+                    />
+                  </div>
+                </motion.div>
+              )}
             </CardContent>
           </Card>
         </div>

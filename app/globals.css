@@ -70,3 +70,58 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom styles for react-h5-audio-player */
+.rhap_container {
+  background-color: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.rhap_progress-bar {
+  background-color: #4a5568 !important;
+}
+
+.rhap_progress-filled {
+  background-color: #ed8936 !important;
+}
+
+.rhap_progress-indicator {
+  background: #ed8936 !important;
+}
+
+.rhap_time {
+  color: #a0aec0 !important;
+}
+
+.rhap_volume-bar {
+  background-color: #4a5568 !important;
+}
+
+.rhap_volume-indicator {
+  background: #ed8936 !important;
+}
+
+.rhap_button-clear {
+  color: #ed8936 !important;
+}
+
+.rhap_button-clear:hover {
+  color: #dd6b20 !important;
+}
+
+.rhap_main-controls-button {
+  color: #ed8936 !important;
+}
+
+.rhap_main-controls-button:hover {
+  color: #dd6b20 !important;
+}
+
+.rhap_volume-button {
+  color: #ed8936 !important;
+}
+
+.rhap_volume-button:hover {
+  color: #dd6b20 !important;
+}
